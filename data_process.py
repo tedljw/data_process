@@ -39,21 +39,24 @@ def data_extract(prcess_conifg):
 
     if prcess_conifg.extract_type == "yuliao":
         out_data = data[prcess_conifg.column].drop_duplicates(keep ='first')
-        for q in out_data.loc[0:2] :
+#        for q in out_data.loc[0:2] :
+        for q in out_data :
             if type(q) == float :
                 continue
-
+        
             result = re.findall(".\d:(.*).\n", q, re.M)
             for cq in result:
                 if len(cq) != 0:
                     question_list.append(cq)
+
 
     if prcess_conifg.extract_type == "zhishidian":
         out_data = data[prcess_conifg.column]
         out_data2 = data[prcess_conifg.column2]
         length_data =  len(out_data)
 
-        for i in range(0,3) :
+#        for i in range(0,3) :
+        for i in range(0,length_data) :
             question_list.append(out_data[i])
             if type(out_data2[i]) == float :
                 continue
@@ -105,8 +108,7 @@ def cosine(a, b):
 """相似度计算"""
 def similarity(base_vec, cmp_vec):
     emb = np.array([base_vec[0], cmp_vec[0]])
-    cosine(emb[0], emb[1])
-    pass
+    return  cosine(emb[0], emb[1])
 
 
 def main():
@@ -116,11 +118,14 @@ def main():
 # 2. 编写需要的执行的函数
 #    pipeline = ["xlsx_to_csv", "data_extract"]
 
+    print("获取向量-cmp")
 # 3. 获取向量
     get_class("xlsx_to_csv")(myconifg)
     cmp_list =  get_class("data_extract")(myconifg)
     cmp_vec = get_vec(cmp_list, myconifg)
 
+
+    print("获取向量-base")
 
     myconifg.file_dest="zhishidian.csv"
     myconifg.column="知识标题"
@@ -133,6 +138,7 @@ def main():
 
 # 4. 计算相似度
 
+    print("计算相似度")
     len_base_vec = len(base_vec)
     len_cmp_vec = len(cmp_vec)
 
@@ -140,12 +146,13 @@ def main():
     print("cmp vec 的长度是: %d \n" % (len_cmp_vec))
     print("总共需要计算的次数: %d \n" % ( len_base_vec * len_cmp_vec ))
 
-
+    similar = 0.95
+    print("相似度大于 %3f 结果是：\n" % (similar))
     for i in range(0 ,len_base_vec) :
         for j in range(0, len_cmp_vec):
             sim = similarity(base_vec[i], cmp_vec[j])
-            if sim > 0.95 :
-                print("base:%s, cmp:%s , score is: %3f\n" % (base_list[i], cmp_list[j], sim))
+            if sim > similar :
+                print("base:%s, cmp:%s , score is: %3f" % (base_list[i], cmp_list[j], sim))
 
 
 if __name__ == '__main__':
