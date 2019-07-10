@@ -2,6 +2,9 @@ import pandas as pd
 import re
 from bert_serving.client import BertClient
 import numpy as np
+import gensim
+#from pyhanlp import *
+import jieba
 
 """配置"""
 class PrcessConifg(object):
@@ -13,8 +16,9 @@ class PrcessConifg(object):
     # 需要获取的列
     column = "对话详情"
     column2 = ""
-    # 输出的语料文件
-    file_out = ""
+    # 输出的向量文件
+    file_out = "yuliao.npy"
+    file_out2 = "zhishidian.npy"
     # 向量生产方法
     vec_type = "bert"
     # csv数据处理
@@ -46,7 +50,7 @@ def data_extract(prcess_conifg):
         
             result = re.findall(".\d:(.*).\n", q, re.M)
             for cq in result:
-                if len(cq) != 0:
+                if len(cq) != 0 and cq not in question_list:
                     question_list.append(cq)
 
 
@@ -67,7 +71,6 @@ def data_extract(prcess_conifg):
 
 
     return question_list
-    #out_data.to_csv(csv_conifg.file_out)
 
 
 """获取bert的向量"""
@@ -75,8 +78,16 @@ def bert_vec(bc, sentence):
     return bc.encode([sentence])
 
 """获取word2vec的向量"""
-def word_vec(sentence):
-    pass
+def word_vec(model, sentence):
+    #words = HanLP.segment(sentence)
+    words = jieba.lcut(sentence)
+    #去停用词
+
+    v = np.zeros(64)
+    for word in words :
+        v += model[word]
+    v /= len(words)
+    return v
 
 '''获取向量表示'''
 def get_vec(question_list, prcess_conifg):
@@ -85,12 +96,15 @@ def get_vec(question_list, prcess_conifg):
     if prcess_conifg.vec_type == "bert" :
         bc = BertClient(ip="127.0.0.1")
         for question in question_list:
-            question_vec.append(bert_vec(bc, question))
+            question_vec.append(bert_vec(bc, question)[0])
         bc.close()
 
     if prcess_conifg.vec_type == "word" :
+        model_file = '/data/dataset/news_12g_baidubaike_20g_novel_90g_embedding_64.bin'
+        model = gensim.models.KeyedVectors.load_word2vec_format(model_file, binary=True)
+        print("load 模型完成")
         for question in question_list:
-            question_vec.append(word_vec(question))
+            question_vec.append(word_vec(model, question))
 
     return question_vec
 
@@ -107,7 +121,7 @@ def cosine(a, b):
 
 """相似度计算"""
 def similarity(base_vec, cmp_vec):
-    emb = np.array([base_vec[0], cmp_vec[0]])
+    emb = np.array([base_vec, cmp_vec])
     return  cosine(emb[0], emb[1])
 
 
@@ -118,43 +132,63 @@ def main():
 # 2. 编写需要的执行的函数
 #    pipeline = ["xlsx_to_csv", "data_extract"]
 
-    print("获取向量-cmp")
+    pipeline = {"a":1, "b":1, "c": 1, "d": 0}
+
+
 # 3. 获取向量
-    get_class("xlsx_to_csv")(myconifg)
-    cmp_list =  get_class("data_extract")(myconifg)
-    cmp_vec = get_vec(cmp_list, myconifg)
+    if pipeline["a"] == 1 :
+        print("获取语料-cmp")
+        get_class("xlsx_to_csv")(myconifg)
+        cmp_list =  get_class("data_extract")(myconifg)
 
 
-    print("获取向量-base")
+    if pipeline["b"] == 1:
+        print("获取语料-base")
+        myconifg.file_dest="zhishidian.csv"
+        myconifg.column="知识标题"
+        myconifg.column2="相似问法"
+        myconifg.extract_type="zhishidian"
 
-    myconifg.file_dest="zhishidian.csv"
-    myconifg.column="知识标题"
-    myconifg.column2="相似问法"
-    myconifg.extract_type="zhishidian"
+        get_class("xlsx_to_csv")(myconifg)
+        base_list = get_class("data_extract")(myconifg)
 
-    get_class("xlsx_to_csv")(myconifg)
-    base_list = get_class("data_extract")(myconifg)
-    base_vec = get_vec(base_list, myconifg)
 
-# 4. 计算相似度
+# 4. 存储向量文件
+    if pipeline["c"] == 1:
+        print("获取向量")
+        cmp_vector = get_vec(cmp_list, myconifg)
+        base_vector = get_vec(base_list, myconifg)
 
-    print("计算相似度")
-    len_base_vec = len(base_vec)
-    len_cmp_vec = len(cmp_vec)
+        np.save(myconifg.file_out, cmp_vector)
+        np.save(myconifg.file_out2, base_vector)
 
-    print("base vec 的长度是: %d \n" % (len_base_vec))
-    print("cmp vec 的长度是: %d \n" % (len_cmp_vec))
-    print("总共需要计算的次数: %d \n" % ( len_base_vec * len_cmp_vec ))
+# 5. 计算相似度
+    if pipeline["d"] == 1:
 
-    similar = 0.95
-    print("相似度大于 %3f 结果是：\n" % (similar))
-    for i in range(0 ,len_base_vec) :
-        for j in range(0, len_cmp_vec):
-            sim = similarity(base_vec[i], cmp_vec[j])
-            if sim > similar :
-                print("base:%s, cmp:%s , score is: %3f" % (base_list[i], cmp_list[j], sim))
+        cmp_vec = np.load(myconifg.file_out)
+        base_vec = np.load(myconifg.file_out2)
 
+        print("计算相似度")
+        len_base_vec = len(base_vec)
+        len_cmp_vec = len(cmp_vec)
+
+        print("base vec 的长度是: %d \n" % (len_base_vec))
+        print("cmp vec 的长度是: %d \n" % (len_cmp_vec))
+        print("总共需要计算的次数: %d \n" % ( len_base_vec * len_cmp_vec ))
+
+        count = 0
+        similar = 0.95
+        print("相似度大于 %3f 结果是：\n" % (similar))
+        for i in range(0 ,len_base_vec) :
+            for j in range(0, len_cmp_vec):
+                sim = similarity(base_vec[i], cmp_vec[j])
+                if sim > similar :
+                    count = count + 1
+                    print("base:%s, cmp:%s , score is: %3f" % (base_list[i], cmp_list[j], sim))
+
+        print("找到相似句子：", count)
 
 if __name__ == '__main__':
     main()
+
 
