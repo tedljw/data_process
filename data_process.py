@@ -3,8 +3,8 @@ import re
 from bert_serving.client import BertClient
 import numpy as np
 import gensim
-#from pyhanlp import *
-import jieba
+from pyhanlp import *
+#import jieba
 
 """配置"""
 class PrcessConifg(object):
@@ -17,10 +17,11 @@ class PrcessConifg(object):
     column = "对话详情"
     column2 = ""
     # 输出的向量文件
-    file_out = "yuliao.npy"
-    file_out2 = "zhishidian.npy"
+    file_out = "yuliao_word.npy"
+    file_out2 = "zhishidian_word.npy"
     # 向量生产方法
-    vec_type = "bert"
+    #vec_type = "bert"
+    vec_type = "word"
     # csv数据处理
     extract_type = "yuliao"
 
@@ -79,13 +80,16 @@ def bert_vec(bc, sentence):
 
 """获取word2vec的向量"""
 def word_vec(model, sentence):
-    #words = HanLP.segment(sentence)
-    words = jieba.lcut(sentence)
+    words = HanLP.segment(sentence)
+    #words = jieba.lcut(sentence)
     #去停用词
+    CoreStopWordDictionary = JClass("com.hankcs.hanlp.dictionary.stopword.CoreStopWordDictionary")
+    CoreStopWordDictionary.apply(words)
+    HanLP.Config.ShowTermNature = False
 
     v = np.zeros(64)
     for word in words :
-        v += model[word]
+        v += model[str(word)]
     v /= len(words)
     return v
 
@@ -104,7 +108,10 @@ def get_vec(question_list, prcess_conifg):
         model = gensim.models.KeyedVectors.load_word2vec_format(model_file, binary=True)
         print("load 模型完成")
         for question in question_list:
-            question_vec.append(word_vec(model, question))
+            #去除英文、数字和其他字符，可以选择不要
+            r_s = u'[a-zA-Z0-9’!"#$%&\'()*+,-./:;<=>?@，。?★、…【】《》？“”‘’！[\\]^_`{|}~]+'
+            question_t = re.sub(r_s, '', question)
+            question_vec.append(word_vec(model, question_t))
 
     return question_vec
 
@@ -177,7 +184,7 @@ def main():
         print("总共需要计算的次数: %d \n" % ( len_base_vec * len_cmp_vec ))
 
         count = 0
-        similar = 0.95
+        similar = 0.8
         print("相似度大于 %3f 结果是：\n" % (similar))
         for i in range(0 ,len_base_vec) :
             for j in range(0, len_cmp_vec):
