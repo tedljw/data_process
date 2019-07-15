@@ -37,7 +37,9 @@ for i in range(0,length_data) :
 
     row = out_data3[i]
     answer = row.replace('\r','').replace('\n','').replace('\t','').replace('<p>','')\
-        .replace('<br />','').replace('</p>','').replace('<div id="se-knowledge">', '').replace('</div>','')
+        .replace('<br />','').replace('</p>','').replace('<div id="se-knowledge">', '').replace('</div>','')\
+        .replace('<span>','').replace('<p style="text-align:left;">', '').replace("</a>", '').replace('<p style="text-align:start;">', '')\
+        .replace('<strong>', '').replace('</span>', '').replace('<br>', '').replace('<span style="font-size:12.0px;">', '')
 
     answer_list.append(answer)
 
