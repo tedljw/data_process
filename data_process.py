@@ -9,7 +9,7 @@ from pyhanlp import *
 """配置"""
 class PrcessConifg(object):
     # 输入文档
-    #file_src = "历史会话19到23.xls"
+    #file_src = ".xls"
     file_src = ""
     # 输出的csv文档
     file_dest = "yuliao.csv"
@@ -191,7 +191,7 @@ def main():
                 sim = similarity(base_vec[i], cmp_vec[j])
                 if sim > similar :
                     count = count + 1
-                    print("base:%s, cmp:%s , score is: %3f" % (base_list[i], cmp_list[j], sim))
+                    print("base:%s, cmp:%s, score is:%3f" % (base_list[i], cmp_list[j], sim))
 
         print("找到相似句子：", count)
 
