@@ -10,21 +10,19 @@ pos neg 0
 #配置和读取数据
 
 #输入文件
-in_file = 'yuliao.csv'
+in_file = 'translate_data.csv'
 #输出文件
 out_file = 'trans.csv'
 #读取列
 column_q = 'question'
-column_a = 'answer'
 column_i = 'index'
 #正负向本对数量，建议正负比为1:3
-pos_num =  50
+pos_num =  20
 neg_num = 3*pos_num
 
 data = pd.read_csv(in_file, encoding='utf-8')
 
 out_data_q = data[column_q]
-#out_data_a = data[column_a]
 out_data_i = data[column_i]
 
 #获取每个类的位置分布
@@ -40,6 +38,7 @@ index_l.append(data_len-1)
 #获取随机的pair
 index_len = len(index_l)
 trans_l = []
+trans_reverse = []
 for j in range (0, index_len, 2):
     min = index_l[j]
     max = index_l[j+1]
@@ -55,6 +54,8 @@ for j in range (0, index_len, 2):
             continue
         pos_str = out_data_q[pos_a] + ',' + out_data_q[pos_b] + ',' + '1'
         trans_l.append(pos_str)
+        pos_str = out_data_q[pos_b] + ',' + out_data_q[pos_a] + ',' + '1'
+        trans_reverse.append(pos_str)
         count = count - 1
 
     #获取负pair
@@ -69,10 +70,26 @@ for j in range (0, index_len, 2):
             continue
         neg_str = out_data_q[pos_index]+','+out_data_q[neg_index]+','+'0'
         trans_l.append(neg_str)
+        neg_str = out_data_q[neg_index] + ',' + out_data_q[pos_index] + ',' + '0'
+        trans_reverse.append(neg_str)
         count = count - 1
 
 #打散队列
-random.shuffle(trans_l)
-dataframe = pd.DataFrame(trans_l)
-dataframe.drop_duplicates().to_csv(out_file, index=False, encoding='utf-8')
+
+forward = set(trans_l)
+reverse = set(trans_reverse)
+same = list(forward & reverse)
+forward_l = list(forward)
+
+
+while len(same) != 0 :
+    forward_l.remove(same[0])
+    line = same[0].split(',')
+    if line[1]+','+line[0]+','+line[2] in same:
+        same.remove(line[1]+','+line[0]+','+line[2])
+    same.remove(same[0])
+
+random.shuffle(forward_l)
+dataframe = pd.DataFrame(forward_l)
+dataframe.to_csv(out_file, index=False, encoding='utf-8')
 
